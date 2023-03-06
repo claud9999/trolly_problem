@@ -2,6 +2,18 @@
 direction = NW, N, NE, W, E, SW, S, SE
 */
 
+class NPC {
+    constructor(emoji, x, y, map) {
+        this.emoji = emoji;
+        this.map = map;
+        this.x = x;
+        this.y = y;
+    }
+
+    paint() {
+        this.map.ctx.fillText(this.emoji, this.x * this.map.cell_width, this.y * this.map.cell_height);
+    }
+}
 class Rail {
     constructor(map) {
         this.map = map;
@@ -121,6 +133,7 @@ class RailMap {
         }
 
         this.lines = [];
+        this.npcs = [];
     }
 
     add() {
@@ -131,13 +144,30 @@ class RailMap {
         for(var i = 0; i < this.lines.length; i++) {
             this.lines[i].draw(this.ctx);
         };
+        for (i = 0; i < this.npcs.length; i++) {
+            this.npcs[i].paint();
+        }
+    }
+
+    addNPC() {
+        const emojis = "😀😃😄😁😆😅😂🤣🥲🥹☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😮‍💨😤😠😡🤬🤯😳🥶😱😨😰😥😓🫣🤗🫡🤔🫢🤭🤫🤥😶😶️😐😑😬🫠🙄😯😦😧😮😲🥱😴🤤😪😵😵💫🫥🤐🥴🤢🤮🤧😷🤒🤕🤑🤠🤡💩";
+        this.npcs.push(new NPC(emojis.charAt(0), Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), this));
     }
 }
 
+function kp(event) {
+    console.log(event.keyCode);
+}
+
 function trolly() {
+    var c = document.getElementById("trolly");
+    window.onkeydown = kp;
     var rm = new RailMap();
     for(var i = 0; i < 10; i++) {
         rm.add();
     };
+    for(i = 0; i < 10; i ++) {
+        rm.addNPC();
+    }
     rm.draw();
 }
