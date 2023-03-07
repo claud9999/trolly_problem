@@ -1,5 +1,9 @@
 /*
-direction = NW, N, NE, W, E, SW, S, SE
+direction =
+    1 = heading up + left, 2 = up, 4 = up + right,
+    8 = right,
+    16 = down + right, 32 = down, 64 = down + left,
+    128 = left
 */
 
 class NPC {
@@ -24,22 +28,22 @@ class Rail {
         var direction = Math.floor(Math.random() * 4);
         var prevdir = -1;
         switch(direction) {
-            case 0: /* heading NW, N, NE */
+            case 0: /* heading up (+ left or right) */
                 direction = Math.floor(Math.random() * 3);
                 y = map.height;
                 x = Math.floor((Math.random() + Math.random()) / 2 * map.width);
                 break;
-            case 1: /* heading SE, S, SW */
+            case 1: /* heading down (+ left or right) */
                 direction = Math.floor(Math.random() * 3) + 4;
                 y = -1;
                 x = Math.floor((Math.random() + Math.random()) / 2 * map.width);
                 break;
-            case 2: /* heading NE, E, SE */
+            case 2: /* heading right (+ up or down) */
                 direction = Math.floor(Math.random() * 3) + 2;
                 x = -1;
                 y = Math.floor((Math.random() + Math.random()) / 2 * map.height);
                 break;
-            case 3: /* heading NW, W, SW */
+            case 3: /* heading left (+ up or down) */
                 direction = (Math.floor(Math.random() * 3) + 6) % 8;
                 x = map.width;
                 y = Math.floor((Math.random() + Math.random()) / 2 * map.height);
@@ -54,6 +58,8 @@ class Rail {
             x += map.delta[direction][0];
             y += map.delta[direction][1];
             if (x < 0 || x >= map.width || y < 0 || y >= map.height) break;
+            if (map.terminus[direction] & map.data[x + y * map.width])
+                break; /* there are tracks going (basically) the same direction */
             map.data[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
             var turn = Math.random();
             if (turn > 0.9 && turn < 0.95) { /* turn left */
@@ -85,15 +91,6 @@ class Rail {
 }
 
 class RailMap {
-    /* array of cels, with a bit map for which side/corner is connected
-        1 = top-left
-        2 = top
-        4 = top-right
-        8 = left
-        16 = right
-        32 = bottom-left
-        64 = bottom-right
-    */
     constructor() {
         this.canvas = document.getElementById("trolly");
         this.ctx = this.canvas.getContext("2d");
@@ -110,24 +107,18 @@ class RailMap {
         this.data = new Array(this.width * this.height);
         this.delta = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
         this.bits = {};
-        this.bits.NW = 1;
-        this.bits.N = 2;
-        this.bits.NE = 4;
-        this.bits.E = 8;
-        this.bits.SE = 16;
-        this.bits.S = 32;
-        this.bits.SW = 64;
-        this.bits.W = 128;
-        this.bitmap = [
-            this.bits.NW,
-            this.bits.N,
-            this.bits.NE,
-            this.bits.E,
-            this.bits.SE,
-            this.bits.S,
-            this.bits.SW,
-            this.bits.W];
-
+        this.bitmap = [1, 2, 4, 8, 16, 32, 64, 128];
+        this.terminus = [
+            /* for a given direction, if there are outgoing in one of these directions, stop */
+            131, /* left, up + left, up */
+            7,   /* up + left, up, up + right */
+            14,  /* up, up + right, right */
+            28,  /* up + right, right, down + right */
+            56,  /* right, down + right, down */
+            112,  /* down + right, down, down + left */
+            224,  /* down, down + left, left */
+            193 /* down + left, left, up + left */
+        ];
         for (var i = 0; i < this.data.length; i++) {
             this.data[i] = 0;
         }
@@ -150,8 +141,7 @@ class RailMap {
     }
 
     addNPC() {
-        const emojis = "😀😃😄😁😆😅😂🤣🥲🥹☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😮‍💨😤😠😡🤬🤯😳🥶😱😨😰😥😓🫣🤗🫡🤔🫢🤭🤫🤥😶😶️😐😑😬🫠🙄😯😦😧😮😲🥱😴🤤😪😵😵💫🫥🤐🥴🤢🤮🤧😷🤒🤕🤑🤠🤡💩";
-        this.npcs.push(new NPC(emojis.charAt(0), Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), this));
+        this.npcs.push(new NPC(emojis.substring(0,1), Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), this));
     }
 }
 
@@ -163,7 +153,7 @@ function trolly() {
     var c = document.getElementById("trolly");
     window.onkeydown = kp;
     var rm = new RailMap();
-    for(var i = 0; i < 10; i++) {
+    for(var i = 0; i < 20; i++) {
         rm.add();
     };
     for(i = 0; i < 10; i ++) {
