@@ -7,28 +7,27 @@ direction =
 */
 
 class Switch {
-    constructor(x, y, direction) {
+    constructor(x, y, direction, map) {
         this.x = x; this.y = y; this.direction = direction;
+        this.map = map;
     }
 
-    paint(ctx) {
-        ctx.textBaseline="middle";
-        ctx.translate(this.x,this.y);
-        ctx.rotate((this.direction - 3) * Math.PI / 4);
-        ctx.fillText("\u{2711}",0,0);
-        ctx.setTransform(1,0,0,1,0,0);
+    paint() {
+        this.map.ctx.lineWidth = 6;
+        this.map.ctx.strokeStyle = "black";
+        this.map.ctx.strokeRect((this.x - 1) * this.map.cell_width, (this.y - 1) * this.map.cell_height, this.map.cell_width * 2, this.map.cell_height * 2)
     }
 }
 class NPC {
     constructor(emoji, x, y, map) {
-        this.emoji = emoji;
         this.map = map;
+        this.emoji = emoji;
         this.x = x;
         this.y = y;
     }
 
-    paint(ctx) {
-        ctx.fillText(this.emoji, this.x * this.map.cell_width, this.y * this.map.cell_height);
+    paint() {
+        this.map.ctx.fillText(this.emoji, 0, 0);
     }
 }
 class Rail {
@@ -71,8 +70,9 @@ class Rail {
             x += map.delta[direction][0];
             y += map.delta[direction][1];
             if (x < 0 || x >= map.width || y < 0 || y >= map.height) break;
-            if (map.terminus[direction] & map.railcells[x + y * map.width])
+            if (map.terminus[direction] & map.railcells[x + y * map.width]) {
                 break; /* there are tracks going (basically) the same direction */
+            }
             map.railcells[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
             var turn = Math.random();
             if (turn > 0.9 && turn < 0.95) { /* turn left */
@@ -84,23 +84,24 @@ class Rail {
             }
             prevdir = direction;
         }
+        map.railcells[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
         this.points.push([x, y]);
     }
 
-    paint(ctx) {
-        ctx.moveTo(this.points[0][0] * this.map.cell_width, this.points[0][1] * this.map.cell_height);
+    paint() {
+        this.map.ctx.moveTo(this.points[0][0] * this.map.cell_width, this.points[0][1] * this.map.cell_height);
         for(var i = 1; i < this.points.length; i++) {
-            ctx.lineTo(this.points[i][0] * this.map.cell_width, this.points[i][1] * this.map.cell_height);
+            this.map.ctx.lineTo(this.points[i][0] * this.map.cell_width, this.points[i][1] * this.map.cell_height);
         };
 
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = "black";
-        ctx.stroke();
+        this.map.ctx.lineWidth = 6;
+        this.map.ctx.strokeStyle = "black";
+        this.map.ctx.stroke();
 
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "white";
-        ctx.stroke();
-    }
+        this.map.ctx.lineWidth = 3;
+        this.map.ctx.strokeStyle = "white";
+        this.map.ctx.stroke();
+     }
 }
 
 class RailMap {
@@ -112,7 +113,7 @@ class RailMap {
         this.pixel_height = window.innerHeight - 20;
         this.canvas.height = this.pixel_height;
 
-        const meas = this.ctx.measureText("\u{1F600}");
+        var meas = this.ctx.measureText("\u{1F600}");
         this.cell_width = meas.width;
         this.cell_height = meas.actualBoundingBoxAscent;
         this.width = Math.floor(this.pixel_width / this.cell_width);
@@ -146,13 +147,13 @@ class RailMap {
 
     paint() {
         for(var i = 0; i < this.lines.length; i++) {
-            this.lines[i].paint(this.ctx);
+            this.lines[i].paint();
         };
         for (i = 0; i < this.npcs.length; i++) {
-            this.npcs[i].paint(this.ctx);
+            this.npcs[i].paint();
         }
         for (i = 0; i < this.switches.length; i++) {
-            this.switches[i].paint(this.ctx);
+            this.switches[i].paint();
         }
     }
 
@@ -161,7 +162,24 @@ class RailMap {
     }
 
     addSwitch(x, y, direction) {
-        this.switches.push(new Switch(x, y, direction));
+        this.switches.push(new Switch(x, y, direction, this));
+    }
+
+    addSwitches() {
+        for(var x = 0; x < this.width; x++) {
+            for (var y = 0; y < this.height; y++) {
+                var c = this.railcells[x + y * this.width];
+                if (c == 0) continue;
+                var cnt = 0;
+                for(var direction = 0; direction < 8; direction++) {
+                    if ((c & (2 ** direction)) == 0) continue;
+                    if(cnt == 2) { /* already two, now on third */
+                        this.addSwitch(x, y, direction);
+                        break;
+                    } else cnt++;
+                }
+            }
+        }
     }
 }
 
@@ -176,9 +194,12 @@ function trolly() {
     for(var i = 0; i < 20; i++) {
         rm.add();
     };
-    for(i = 0; i < 10; i ++) {
+/*    for(i = 0; i < 10; i ++) {
         rm.addNPC();
     }
-    rm.addSwitch(10,10,0);
+    */
+
+    rm.addSwitches();
+
     rm.paint();
 }
