@@ -6,6 +6,19 @@ direction =
     128 = left
 */
 
+class Switch {
+    constructor(x, y, direction) {
+        this.x = x; this.y = y; this.direction = direction;
+    }
+
+    paint(ctx) {
+        ctx.textBaseline="middle";
+        ctx.translate(this.x,this.y);
+        ctx.rotate((this.direction - 3) * Math.PI / 4);
+        ctx.fillText("\u{2711}",0,0);
+        ctx.setTransform(1,0,0,1,0,0);
+    }
+}
 class NPC {
     constructor(emoji, x, y, map) {
         this.emoji = emoji;
@@ -14,8 +27,8 @@ class NPC {
         this.y = y;
     }
 
-    paint() {
-        this.map.ctx.fillText(this.emoji, this.x * this.map.cell_width, this.y * this.map.cell_height);
+    paint(ctx) {
+        ctx.fillText(this.emoji, this.x * this.map.cell_width, this.y * this.map.cell_height);
     }
 }
 class Rail {
@@ -53,14 +66,14 @@ class Rail {
 
         while(1) {
             if (prevdir >= 0) { /* mark leaving path */
-                map.data[x + y * map.width] |= map.bitmap[(prevdir + 4) % 8];
+                map.railcells[x + y * map.width] |= map.bitmap[(prevdir + 4) % 8];
             }
             x += map.delta[direction][0];
             y += map.delta[direction][1];
             if (x < 0 || x >= map.width || y < 0 || y >= map.height) break;
-            if (map.terminus[direction] & map.data[x + y * map.width])
+            if (map.terminus[direction] & map.railcells[x + y * map.width])
                 break; /* there are tracks going (basically) the same direction */
-            map.data[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
+            map.railcells[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
             var turn = Math.random();
             if (turn > 0.9 && turn < 0.95) { /* turn left */
                 this.points.push([x, y]);
@@ -74,7 +87,7 @@ class Rail {
         this.points.push([x, y]);
     }
 
-    draw(ctx) {
+    paint(ctx) {
         ctx.moveTo(this.points[0][0] * this.map.cell_width, this.points[0][1] * this.map.cell_height);
         for(var i = 1; i < this.points.length; i++) {
             ctx.lineTo(this.points[i][0] * this.map.cell_width, this.points[i][1] * this.map.cell_height);
@@ -104,9 +117,9 @@ class RailMap {
         this.cell_height = meas.actualBoundingBoxAscent;
         this.width = Math.floor(this.pixel_width / this.cell_width);
         this.height = Math.floor(this.pixel_height / this.cell_height);
-        this.data = new Array(this.width * this.height);
+        this.railcells = new Array(this.width * this.height);
+        this.switches = new Array();
         this.delta = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
-        this.bits = {};
         this.bitmap = [1, 2, 4, 8, 16, 32, 64, 128];
         this.terminus = [
             /* for a given direction, if there are outgoing in one of these directions, stop */
@@ -119,8 +132,8 @@ class RailMap {
             224,  /* down, down + left, left */
             193 /* down + left, left, up + left */
         ];
-        for (var i = 0; i < this.data.length; i++) {
-            this.data[i] = 0;
+        for (var i = 0; i < this.railcells.length; i++) {
+            this.railcells[i] = 0;
         }
 
         this.lines = [];
@@ -131,17 +144,24 @@ class RailMap {
         this.lines.push(new Rail(this));
     }
 
-    draw() {
+    paint() {
         for(var i = 0; i < this.lines.length; i++) {
-            this.lines[i].draw(this.ctx);
+            this.lines[i].paint(this.ctx);
         };
         for (i = 0; i < this.npcs.length; i++) {
-            this.npcs[i].paint();
+            this.npcs[i].paint(this.ctx);
+        }
+        for (i = 0; i < this.switches.length; i++) {
+            this.switches[i].paint(this.ctx);
         }
     }
 
     addNPC() {
         this.npcs.push(new NPC(emojis.substring(0,1), Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), this));
+    }
+
+    addSwitch(x, y, direction) {
+        this.switches.push(new Switch(x, y, direction));
     }
 }
 
@@ -159,5 +179,6 @@ function trolly() {
     for(i = 0; i < 10; i ++) {
         rm.addNPC();
     }
-    rm.draw();
+    rm.addSwitch(10,10,0);
+    rm.paint();
 }
