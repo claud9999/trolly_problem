@@ -6,6 +6,14 @@ direction =
     128 = left
 */
 
+var r = 755;
+function random() {
+    return Math.random();
+    r = (r + 7753) % 5443;
+    //console.log(r);
+    return (r / 5443);
+}
+
 class Point {
     constructor(x, y) { this.x = x; this.y = y; }
 }
@@ -52,27 +60,27 @@ class Rail {
         this.points = new Array();
 
         /* pick edge to start from, 0 = bottom, 1 = top, 2 = left, 3 = right */
-        var d = Math.floor(Math.random() * 4);
+        var d = Math.floor(random() * 4);
         switch(d) {
             case 0: /* heading up (+ left or right) */
-                d = Math.floor(Math.random() * 3);
+                d = Math.floor(random() * 3);
                 y = this.map.height - 1;
-                x = Math.floor((Math.random() + Math.random()) / 2 * this.map.width);
+                x = Math.floor((random() + random()) / 2 * this.map.width);
                 break;
             case 1: /* heading down (+ left or right) */
-                d = Math.floor(Math.random() * 3) + 4;
+                d = Math.floor(random() * 3) + 4;
                 y = 0;
-                x = Math.floor((Math.random() + Math.random()) / 2 * this.map.width);
+                x = Math.floor((random() + random()) / 2 * this.map.width);
                 break;
             case 2: /* heading right (+ up or down) */
-                d = Math.floor(Math.random() * 3) + 2;
+                d = Math.floor(random() * 3) + 2;
                 x = 0;
-                y = Math.floor((Math.random() + Math.random()) / 2 * this.map.height);
+                y = Math.floor((random() + random()) / 2 * this.map.height);
                 break;
             case 3: /* heading left (+ up or down) */
-                d = (Math.floor(Math.random() * 3) + 6) % 8;
+                d = (Math.floor(random() * 3) + 6) % 8;
                 x = this.map.width - 1;
-                y = Math.floor((Math.random() + Math.random()) / 2 * this.map.height);
+                y = Math.floor((random() + random()) / 2 * this.map.height);
                 break;
         }
         var segment = new RailSegment(x, y, d);
@@ -88,10 +96,11 @@ class Rail {
                 break;
             }
             if (this.map.terminus[d] & this.map.railcells[x][y]) {
+                console.log(["TERM", x, y, d]);
                 break; /* there are tracks going (basically) the same direction */
             }
             if (l > 3) { // don't start turning for a few steps into the map */
-                var turn = Math.random();
+                var turn = random();
                 if (turn > 0.9 && turn < 0.95) { /* turn left */
                     d--; if (d < 0) d = 7;
                     segment = new RailSegment(x, y, d);
@@ -114,11 +123,11 @@ class Rail {
             var x = p.x; var y = p.y; var d = p.d;
             for(var l = 0; l < p.l; l++) {
                 // mark outgoing
-                this.map.railcells[x][y] |= this.map.bitmap[(d + 4) % 8];
+                this.map.railcells[x][y] |= this.map.bitmap[d];
                 x += this.map.delta[d].x;
                 y += this.map.delta[d].y;
                 // mark incoming
-                this.map.railcells[x][y] |= this.map.bitmap[d];
+                this.map.railcells[x][y] |= this.map.bitmap[(d + 4) % 8];
             }
         }
     }
@@ -221,7 +230,7 @@ class RailMap {
     }
 
     addNPC() {
-        this.npcs.push(new NPC(emojis.substring(0,2), Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), this));
+        this.npcs.push(new NPC(emojis.substring(0,2), Math.floor(random() * this.width), Math.floor(random() * this.height), this));
     }
 
     addSwitch(x, y, direction) {
@@ -259,7 +268,7 @@ function trolly() {
 
     rm = new RailMap();
 
-    for(var i = 0; i < 20; i++) {
+    for(var i = 0; i < 10; i++) {
         rm.add();
     };
 
