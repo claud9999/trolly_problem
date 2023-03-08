@@ -30,7 +30,7 @@ class NPC {
     }
 
     paint() {
-        this.map.ctx.fillText(this.emoji, 0, 0);
+        this.map.ctx.fillText(this.emoji, this.x * this.map.cell_width, this.y * this.map.cell_height);
     }
 }
 class Rail {
@@ -78,7 +78,7 @@ class Rail {
                 break; /* there are tracks going (basically) the same direction */
             }
             map.railcells[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
-            if (cell_count > 3) {
+            if (cell_count > 3) { // don't start turning for a few steps into the map */
                 var turn = Math.random();
                 if (turn > 0.9 && turn < 0.95) { /* turn left */
                     this.points.push([x, y]);
@@ -166,7 +166,7 @@ class RailMap {
     }
 
     addNPC() {
-        this.npcs.push(new NPC(emojis.substring(0,1), Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), this));
+        this.npcs.push(new NPC(emojis.substring(0,2), Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), this));
     }
 
     addSwitch(x, y, direction) {
@@ -177,14 +177,14 @@ class RailMap {
         for(var x = 0; x < this.width; x++) {
             for (var y = 0; y < this.height; y++) {
                 var c = this.railcells[x + y * this.width];
-                if (c == 0) continue;
-                var cnt = 0;
-                for(var direction = 0; direction < 8; direction++) {
-                    if ((c & (2 ** direction)) == 0) continue;
-                    if(cnt == 2) { /* already two, now on third */
-                        this.addSwitch(x, y, direction);
-                        break;
-                    } else cnt++;
+                if (c == 0) continue; // shortcut empty cells
+                for (var b = 0; b < 8; b++) {
+                    if (c & (2 ** b)) {
+                        if (c & (2 ** ((b + 1) % 8))) {
+                            this.addSwitch(x, y, b);
+                            break;
+                        }
+                    }
                 }
             }
         }
