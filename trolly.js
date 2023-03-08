@@ -13,9 +13,12 @@ class Switch {
     }
 
     paint() {
-        this.map.ctx.lineWidth = 6;
-        this.map.ctx.strokeStyle = "black";
-        this.map.ctx.strokeRect((this.x - 1) * this.map.cell_width, (this.y - 1) * this.map.cell_height, this.map.cell_width * 2, this.map.cell_height * 2)
+        this.map.ctx.beginPath();
+        this.map.ctx.lineWidth = 3;
+        this.map.ctx.strokeStyle = "red";
+        this.map.ctx.moveTo(this.x * this.map.cell_width, this.y * this.map.cell_height);
+        this.map.ctx.lineTo((this.x + this.map.delta[this.direction][0]) * this.map.cell_width, (this.y + this.map.delta[this.direction][1]) * this.map.cell_height);
+        this.map.ctx.stroke();
     }
 }
 class NPC {
@@ -36,6 +39,7 @@ class Rail {
         this.points = [];
         var x = 0;
         var y = 0;
+        var cell_count = 0;
         /* pick edge to start from, 0 = bottom, 1 = top, 2 = left, 3 = right */
         var direction = Math.floor(Math.random() * 4);
         var prevdir = -1;
@@ -74,21 +78,25 @@ class Rail {
                 break; /* there are tracks going (basically) the same direction */
             }
             map.railcells[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
-            var turn = Math.random();
-            if (turn > 0.9 && turn < 0.95) { /* turn left */
-                this.points.push([x, y]);
-                direction--; if (direction < 0) direction = 7;
-            } else if (turn >= 0.95) {
-                this.points.push([x, y]);
-                direction++; if (direction > 7) direction = 0;
+            if (cell_count > 3) {
+                var turn = Math.random();
+                if (turn > 0.9 && turn < 0.95) { /* turn left */
+                    this.points.push([x, y]);
+                    direction--; if (direction < 0) direction = 7;
+                } else if (turn >= 0.95) {
+                    this.points.push([x, y]);
+                    direction++; if (direction > 7) direction = 0;
+                }
             }
+            cell_count++;
             prevdir = direction;
         }
-        map.railcells[x + y * map.width] |= map.bitmap[direction]; /* mark entering path */
+        map.railcells[x + y * map.width] |= map.bitmap[(prevdir + 4) % 8]; /* mark entering path */
         this.points.push([x, y]);
     }
 
     paint() {
+        this.map.ctx.beginPath();
         this.map.ctx.moveTo(this.points[0][0] * this.map.cell_width, this.points[0][1] * this.map.cell_height);
         for(var i = 1; i < this.points.length; i++) {
             this.map.ctx.lineTo(this.points[i][0] * this.map.cell_width, this.points[i][1] * this.map.cell_height);
@@ -190,14 +198,16 @@ function kp(event) {
 function trolly() {
     var c = document.getElementById("trolly");
     window.onkeydown = kp;
+
     var rm = new RailMap();
+
     for(var i = 0; i < 20; i++) {
         rm.add();
     };
-/*    for(i = 0; i < 10; i ++) {
+
+    for(i = 0; i < 10; i ++) {
         rm.addNPC();
     }
-    */
 
     rm.addSwitches();
 
