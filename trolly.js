@@ -59,26 +59,69 @@ class PC extends Token {
 }
 
 class Train extends Token {
-    constructor(line) {
+    constructor(line, speed) {
         super("\u{1F683}", line.points[0].x, line.points[0].y, line.map);
         this.line = line;
         this.segnum = 0;
         this.l = 0;
         this.d = line.points[0].d;
+        this.remaining = 0;
+        this.speed = speed;
+    }
+
+    tick() {
+        this.remaining = this.speed;
     }
 
     move() {
-        if (this.l == this.line.points[this.segnum].l) {
-            this.segnum++;
-            if (this.segnum >= this.line.points.length)
-                return false;
-            this.l = 0;
-            this.d = this.line.points[this.segnum].d;
+        if (this.remaining <= 0) return true;
+        this.remaining--;
+
+        // check if I'm at a switch and can take it
+        var d = -1;
+        for (var s = 0; d < 0 && s < this.map.switches.length; s++) {
+            var sw = this.map.switches[s];
+            if (sw.x != this.x || sw.y != this.y) continue;
+            var td = this.d - 1; if (td < 0) td = 7;
+            if (td == sw.d || ((this.d + 1) % 8) == sw.d) d = sw.d;
         }
 
-        this.x += this.map.delta[this.d].x;
-        this.y += this.map.delta[this.d].y;
-        this.l++;
+        // proceed forward, if possible
+        const c = this.map.railcells[this.x][this.y];
+        if (d < 0 && c & (2 ** this.d)) d = this.d;
+
+        // take a branch, if possible
+        if (d < 0) {
+            var td = 0;
+            if(Math.random() > 0.5) {
+                // try left first
+                td = this.d - 1;
+                if (td < 0) td = 7;
+                if (c & (2 ** td)) d = td;
+                // then right
+                else {
+                    td = (this.d + 1) % 8;
+                    if (c & (2 ** td)) d = td;
+                }
+            } else {
+                // try right first
+                td = (this.d + 1) % 8;
+                if (c & (2 ** td)) d = td;
+                // then left
+                else {
+                    td = this.d - 1;
+                    if (td < 0) td = 7;
+                    if (c & (2 ** td)) d = td;
+                }
+            }
+        }
+
+        if(d < 0) return false;
+
+        this.d = d;
+
+        this.x += this.map.delta[d].x;
+        this.y += this.map.delta[d].y;
 
         return true;
     }
@@ -162,11 +205,11 @@ class Rail {
             var x = p.x; var y = p.y; var d = p.d;
             for(var l = 0; l < p.l; l++) {
                 // mark outgoing
-                this.map.railcells[x][y] |= this.map.bitmap[d];
+                this.map.railcells[x][y] |= (2 ** d);
                 x += this.map.delta[d].x;
                 y += this.map.delta[d].y;
                 // mark incoming
-                this.map.railcells[x][y] |= this.map.bitmap[(d + 4) % 8];
+                this.map.railcells[x][y] |= (2 ** ((d + 4) % 8));
             }
         }
     }
@@ -235,7 +278,6 @@ class RailMap {
             new Point(-1, 1), // down + left
             new Point(-1, 0) // left
         ];
-        this.bitmap = [1, 2, 4, 8, 16, 32, 64, 128];
         this.terminus = [
             /* for a given d, if there are outgoing in one of these ds, stop */
             131, /* left, up + left, up */
@@ -308,7 +350,7 @@ class RailMap {
 
     addTrain() {
         var railnum = Math.floor(Math.random() * this.lines.length);
-        this.trains.push(new Train(this.lines[railnum]));
+        this.trains.push(new Train(this.lines[railnum], Math.floor(Math.random() * 6)));
     }
 
     toggleSwitch(x, y) {
@@ -319,7 +361,7 @@ class RailMap {
         if(s == this.switches.length) return;
         s = this.switches[s];
         for(var d = (s.d + 1) % 8; d != s.d; d = (d + 1) % 8) {
-            if (this.railcells[x][y] & this.bitmap[d]) break;
+            if (this.railcells[x][y] & (2 ** d)) break;
         }
         s.d = d;
     }
@@ -350,20 +392,21 @@ function kp(event) {
     if(rm.trains.length < 4) rm.addTrain();
 
 /*    for(var i = 0; i < rm.npcs.length; i++) {
-        if(!rm.npcs[i].move()) rm.trains.splice(i--,1);
+        if(!rm.npcs[i].move()) rm.npcs.splice(i--,1);
     }
     */
 
     for(i = 0; i < rm.trains.length; i++) {
-        if(!rm.trains[i].move()) rm.trains.splice(i--,1);
+        rm.trains[i].tick();
     }
-
-    rm.paint();
 }
 
 var rm;
 
-function paint() {
+function process() {
+    for(i = 0; i < rm.trains.length; i++) {
+        if(!rm.trains[i].move()) rm.trains.splice(i--,1);
+    }
     rm.paint();
 }
 
@@ -384,4 +427,6 @@ function trolly() {
     rm.addSwitches();
 
     rm.paint();
+
+    window.setInterval(process, 100);
 }
