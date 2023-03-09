@@ -1,10 +1,4 @@
-/*
-d =
-    1 = heading up + left, 2 = up, 4 = up + right,
-    8 = right,
-    16 = down + right, 32 = down, 64 = down + left,
-    128 = left
-*/
+/* CC-BY https://creativecommons.org/licenses/by/4.0/legalcode Chris Knight cdk-trollyproblem@accessoft.org */
 
 var game = false;
 
