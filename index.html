@@ -1,8 +1,28 @@
 <html>
 <head>
-    <script src="emojis.js"></script>
+    <script src="const.js"></script>
     <script src="trolly.js"></script>
-</head><body onload="trolly()" onresize="trolly()"">
-<canvas tabindex="1" width="100%" height="100%" id="trolly"></canvas>
+</head><body onclick="showgame()">
+    <canvas hidden="true" tabindex="1" width="100%" height="100%" id="trolly"></canvas>
+    <div id="instructions">
+    <h1>Trolly Problem</h1>
+    <p>Those pesky &#x1F600;! But the &#x1F683; are a great way to rid the world of their ugly faces.</p>
+    <p>You are &gt;&gt;&gt;&#x1F479;&lt;&lt;&lt;.</p>
+    <p>Push their ugly faces in the way of oncoming trains, but don't get run down yourself.</p>
+    <p>Trains will follow green switches. Press "spacebar" or "S" to change the switch you are standing on.</p>
+    <pre>
+MOVE
+Q W E
+A * D
+Z X C
+
+SPACEBAR or S to change track switch
+    </pre>
+    <h2>...Click the screen to start!</h2>
+</div>
+    <div id="gameover" hidden="true">
+        <h1>GAME OVER</h1>
+        <h2>Score: <span id="score"></span></h2>
+    </div>
 </body>
 </html>
