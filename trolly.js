@@ -38,6 +38,17 @@ class Token extends Point {
     move(d = -1) { return true; }
 }
 
+class Splat extends Token {
+    constructor(emoji, x, y, map, count = 20) {
+        super(emoji, x, y, map);
+        this.count = count;
+    }
+
+    move(d = -1) {
+        return this.count-- > 0;
+    }
+}
+
 class NPC extends Token {
     constructor(emoji, x, y, map, speed) {
         super(emoji, x, y, map);
@@ -207,6 +218,8 @@ class Train extends Token {
             if (npc.x == this.x && npc.y == this.y) {
                 score++;
                 // TODO: create *splat*
+                this.map.splats.push(new Splat("\u{2728}", npc.x, npc.y, this.map));
+
                 this.map.npcs.splice(i--, 1);
                 this.map.addNPC();
             }
@@ -395,9 +408,10 @@ class RailMap {
             193 /* down + left, left, up + left */
         ];
 
-        this.lines = [];
-        this.npcs = [];
-        this.trains = [];
+        this.lines = new Array();
+        this.npcs = new Array();
+        this.splats = new Array();
+        this.trains = new Array();
     }
 
     addLine() {
@@ -407,21 +421,16 @@ class RailMap {
     paint() {
         this.ctx.clearRect(0, 0, this.pixel_width, this.pixel_height);
 
-        for(var i = 0; i < this.lines.length; i++) {
-            this.lines[i].paint(this.ctx);
-        };
+        var i = 0;
+        for(i = 0; i < this.lines.length; i++) this.lines[i].paint(this.ctx);
 
-        for (i = 0; i < this.switches.length; i++) {
-            this.switches[i].paint(this.ctx);
-        }
+        for(i = 0; i < this.switches.length; i++) this.switches[i].paint(this.ctx);
 
-        for (var i = 0; i < this.npcs.length; i++) {
-            this.npcs[i].paint(this.ctx);
-        }
+        for(i = 0; i < this.npcs.length; i++) this.npcs[i].paint(this.ctx);
 
-        for (i = 0; i < this.trains.length; i++) {
-            this.trains[i].paint(this.ctx);
-        }
+        for(i = 0; i < this.splats.length; i++) this.splats[i].paint(this.ctx);
+
+        for(i = 0; i < this.trains.length; i++) this.trains[i].paint(this.ctx);
 
         this.pc.paint(this.ctx);
 
@@ -528,6 +537,10 @@ function kp(event) {
     // let the NPCs move since I've moved...
     for(i = 0; i < game.npcs.length; i++) {
         game.npcs[i].tick();
+    }
+
+    for(i = 0; i < game.splats.length; i++) {
+        if(!game.splats[i].move()) game.splats.splice(i--, 1);
     }
 
     game.paint();
