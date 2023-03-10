@@ -35,7 +35,7 @@ class Token extends Point {
         ctx.fillText(this.emoji, (this.x - 0.5) * this.map.cell_width, (this.y + 0.5) * this.map.cell_height);
     }
 
-    move() { return true; }
+    move(d = -1) { return true; }
 }
 
 class NPC extends Token {
@@ -44,6 +44,22 @@ class NPC extends Token {
         this.count = Math.floor(Math.random() * speed);
         this.speed = speed;
         this.d = Math.floor(Math.random() * 8);
+
+        return;
+
+        // search for a rail cell
+        while(
+                x >= 0 && x < this.map.width
+                && y >= 0 && y < this.map.height
+                && this.map.railcells[x][y] == 0) {
+            x += this.map.delta[this.d].x;
+            y += this.map.delta[this.d].y;
+        }
+        if (x >= 0 && x < this.map.width && y >= 0 && y < this.map.height) {
+            this.x = x; this.y = y;
+        }
+
+        // otherwise stay where I am
     }
 
     // if my speed is 1, I will move every 20 turns...
@@ -52,13 +68,35 @@ class NPC extends Token {
         this.count += this.speed;
     }
 
-    move() {
+    move(d = -1) {
+        if(d >= 0) this.d = d;
+
+        var x = this.x + this.map.delta[this.d].x;
+        var y = this.y + this.map.delta[this.d].y;
+
+        // don't move into square with PC
+        if (x == this.map.pc.x && y == this.map.pc.y) return true;
+
+        // don't move into square with train
+        for (var i = 0; i < this.map.trains.length; i++) {
+            if (x == this.map.trains[i].x && y == this.map.trains[i].y) return true;
+        }
+
+        // push the other NPC(s)
+        for (i = 0; i < this.map.npcs.length; i++) {
+            if (x == this.map.npcs[i].x && y == this.map.npcs[i].y) this.map.npcs[i].move(d);
+        }
+
+        this.x = x; this.y = y;
+
+        // return false if I've moved off the map, so I get removed
+        return (x >= 0 && y >= 0 && x < this.map.width && y < this.map.height);
+    }
+
+    update() {
         if (this.count < 20) return true;
         this.count -= 20;
-
-        this.x += this.map.delta[this.d].x;
-        this.y += this.map.delta[this.d].y;
-        return (this.x >= 0 && this.y >= 0 && this.x < this.map.width && this.y < this.map.height);
+        return this.move();
     }
 }
 
@@ -67,53 +105,26 @@ class PC extends Token {
         super(emoji, x, y, map);
     }
 
-    move(d) {
-        const dx = this.map.delta[d].x;
-        const dy = this.map.delta[d].y;
-        this.x += dx;
-        this.y += dy;
+    move(d = -1) {
+        if(d >= 0) this.d = d;
+
+        const dx = this.map.delta[d].x; const dy = this.map.delta[d].y;
+        const pc_x = this.x + dx; const pc_y = this.y + dy;
 
         // no going off the screen
-        if (this.x < 0 || this.y < 0 || this.x >= this.map.width || this.y >= this.map.height) {
-            this.x -= dx;
-            this.y -= dy;
-            return true;
-        }
+        if (pc_x < 0 || pc_y < 0 || pc_x >= this.map.width || pc_y >= this.map.height) return true;
 
         // push an NPC
         for (var i = 0; i < this.map.npcs.length; i++) {
-            const npc = this.map.npcs[i];
-            if (npc.x == this.x && npc.y == this.y) {
-                npc.x += dx;
-                npc.y += dy;
-                npc.count = 0;
-                for(var d = 0; d < this.map.delta.length; d++) {
-                    if (dx == this.map.delta[d].x && dy == this.map.delta[d].y) {
-                        npc.d = d;
-                        break;
-                    }
-                }
-
-                // can't push them off the screen
-                if (npc.x < 0 || npc.y < 0 || npc.x >= this.map.width || npc.y >= this.map.height) {
-                    this.x -= dx;
-                    this.y -= dy;
-                    npc.x -= dx;
-                    npc.y -= dy;
-                    return true;
-                }
-            }
+            if (this.map.npcs[i].x == pc_x && this.map.npcs[i].y == pc_y) this.map.npcs[i].move(d);
         };
 
         // can't move through a train
         for (i = 0; i < this.map.trains.length; i++) {
-            const train = this.map.trains[i];
-            if (train.x == this.x && train.y == this.y) {
-                this.x -= dx;
-                this.y -= dy;
-                return true;
-            }
+            if (this.map.trains[i].x == pc_x && this.map.trains[i].y == pc_y) return true;
         }
+
+        this.x = pc_x; this.y = pc_y;
 
         return true;
     }
@@ -134,11 +145,12 @@ class Train extends Token {
         this.remaining += this.speed;
     }
 
-    move() {
+    move(d = -1) {
+        // we ignore the d parameter
         if (this.remaining <= 0) return true;
         this.remaining--;
 
-        var d = -1, td = 0;
+        var td = 0;
         const c = this.map.railcells[this.x][this.y];
 
         // check if I'm at a switch and can take it
@@ -354,9 +366,10 @@ class RailMap {
         this.cell_height = meas.actualBoundingBoxAscent;
         this.width = Math.floor(this.pixel_width / this.cell_width);
         this.height = Math.floor(this.pixel_height / this.cell_height);
+        this.railcellsbuf = new ArrayBuffer(this.width * this.height);
         this.railcells = new Array(this.width);
         for(var x = 0; x < this.width; x++) {
-            this.railcells[x] = new Array(this.height);
+            this.railcells[x] = new Uint8ClampedArray(this.railcellsbuf.slice(x * this.height, (x + 1) * this.height));
             for(var y = 0; y < this.height; y++) this.railcells[x][y] = 0;
         }
         this.switches = new Array();
@@ -469,8 +482,10 @@ class RailMap {
     }
 }
 
-var intervalID = false;
+var updateNPCs = true; // NPCs don't move when PC is moving
+
 function kp(event) {
+    updateNPCs = false;
     var d = -1;
     switch(event.keyCode) {
         case 81: // up + left
@@ -495,14 +510,9 @@ function kp(event) {
             d = 7; break;
         case 32: // switch
         case 83:
-            if(!game.toggleSwitch(game.pc.x, game.pc.y)) return;
+            game.toggleSwitch(game.pc.x, game.pc.y);
             break;
-        default:
-            return;
     }
-
-    if(intervalID != false) clearInterval(intervalID);
-    intervalID = false;
 
     if (d >= 0) game.pc.move(d);
 
@@ -522,7 +532,7 @@ function kp(event) {
 
     game.paint();
 
-    intervalID = setInterval(doUpdates, 200);
+    updateNPCs = true;
 }
 
 function doUpdates() {
@@ -531,7 +541,7 @@ function doUpdates() {
     }
 
     for(i = 0; i < game.npcs.length; i++) {
-        if(!game.npcs[i].move()) {
+        if(!game.npcs[i].update()) {
             game.npcs.splice(i--,1);
             game.addNPC();
         }
@@ -562,6 +572,8 @@ function trolly() {
     game.addSwitches();
 
     game.paint();
+
+    setInterval(doUpdates, 200);
 }
 
 function gameover() {
