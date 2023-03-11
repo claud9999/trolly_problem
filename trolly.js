@@ -600,8 +600,56 @@ function gameover() {
     }
 }
 
+function mouseclick(event) {
+    updateNPCs = false;
+
+    var dx = 0;
+    // left third of the screen
+    if (event.screenX < Math.floor(game.pixel_width / 3)) dx = -1;
+    // right third of the screen
+    else if (event.screenX > Math.floor(game.pixel_width / 3) * 2) dx = 1;
+
+    var dy = 0;
+    // top third of the screen
+    if (event.screenY < Math.floor(game.pixel_height / 3)) dy = -1;
+    // bottom third of the screen
+    else if (event.screenY > Math.floor(game.pixel_height / 3) * 2) dy = 1;
+
+    if (dx == 0 && dy == 0) game.toggleSwitch(game.pc.x, game.pc.y);
+    else {
+        var d = 0;
+        for (d = 0; d < 8; d++) {
+            if (game.delta[d].x == dx && game.delta[d].y == dy) break;
+        }
+        game.pc.move(d);
+    }
+
+    // when trains disappear/crash, replace them.
+    // also increase train density as score goes up.
+    if(game.trains.length < score + 4) game.addTrain();
+
+    // let the trains move since I've moved...
+    for(i = 0; i < game.trains.length; i++) {
+        game.trains[i].tick();
+    }
+
+    // let the NPCs move since I've moved...
+    for(i = 0; i < game.npcs.length; i++) {
+        game.npcs[i].tick();
+    }
+
+    for(i = 0; i < game.splats.length; i++) {
+        if(!game.splats[i].move()) game.splats.splice(i--, 1);
+    }
+
+    game.paint();
+
+    updateNPCs = true;
+}
+
 function showgame() {
     var c = document.getElementById("trolly");
+    c.addEventListener('mousedown', mouseclick);
     var i = document.getElementById("instructions");
     if(c.hidden) {
         i.hidden = true;
